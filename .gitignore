@@ -1,2 +1,7 @@
 # variables d'env
 .venv/
+
+#cache
+__pycache__/
+.pytest_cache/
+*.py[cod]
