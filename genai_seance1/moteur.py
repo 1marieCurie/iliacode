@@ -16,23 +16,25 @@ MOTEUR_PAR_DEFAUT = "Qwen/Qwen2.5-Coder-7B"
 
 
 def charger_moteur(nom=MOTEUR_PAR_DEFAUT):
-    """Charge le moteur ouvert et son tokeniseur, figés, sur le GPU s'il
-    y en a un, sinon sur le processeur. Rend le couple (modele, tokeniseur).
-    nom est le nom du moteur sur Hugging Face ou le chemin d'un dossier
-    local qui contient ses fichiers."""
-    raise NotImplementedError("partie 2 du TP, à compléter")
+    appareil = "cuda" if torch.cuda.is_available() else "cpu"
+    format_ = torch.float16 if appareil == "cuda" else torch.float32
+    tokeniseur = AutoTokenizer.from_pretrained(nom)
+    modele = AutoModelForCausalLM.from_pretrained(nom, dtype=format_)
+    modele.to(appareil) # pyright: ignore[reportArgumentType]
+    modele.eval()
+    return modele, tokeniseur
 
 
 def compter_parametres(modele):
     """Le nombre N de paramètres du moteur, la somme, sur toutes ses
     matrices et tous ses vecteurs, du produit de leurs dimensions."""
-    raise NotImplementedError("partie 3 du TP, à compléter")
+    return sum(p.numel() for p in modele.parameters())
 
 
 def memoire_poids(modele):
     """La mémoire des poids en octets, chaque paramètre occupant autant
     d'octets que son format, 2 en FP16, 4 en FP32."""
-    raise NotImplementedError("partie 3 du TP, à compléter")
+    return sum(p.numel() * p.element_size() for p in modele.parameters())
 
 
 def probas_moteur(modele, tokeniseur, texte):
@@ -40,7 +42,12 @@ def probas_moteur(modele, tokeniseur, texte):
     réellement écrit de texte, sachant ceux qui le précèdent. Le premier
     token n'a pas d'histoire, il n'est pas noté. Cette liste est l'entrée
     des fonctions entropie_croisee et perplexite de la séance 3."""
-    raise NotImplementedError("partie 4 du TP, à compléter")
+    numeros = tokeniseur(texte, return_tensors="pt")["input_ids"].to(modele.device)
+    with torch.no_grad():
+        scores = modele(numeros).logits[0].float()
+    probas = torch.softmax(scores[:-1], dim=-1)
+    ecrits = numeros[0, 1:]
+    return probas[torch.arange(len(ecrits)), ecrits].tolist()
 
 
 # ------------------------------------------------------------
